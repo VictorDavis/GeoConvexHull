@@ -72,14 +72,55 @@ for line in f:
     msg = '<{0[0]}><{0[1]}>{0[2]},{0[3]}</{0[1]}></{0[0]}>\n'.format(fmt)
     mykml.write(msg)
     
-# find the center of the data
-clng = sum(lng)/len(lng)
-clat = sum(lat)/len(lat)
+## find the center of the data
+n = len(lng)
+
+# cartesian center
+clng = sum(lng)/n
+clat = sum(lat)/n
+print('Cartesian Center is {0},{1}'.format(clng, clat))
+
+# correction for curvature of the earth
+# refer to http://mathworld.wolfram.com/SphericalCoordinates.html
+x = []
+y = []
+z = []
+
+# 1. convert each lng,lat point to <x,y,z> on the unit sphere
+for i in range(n):
+    theta = lng[i] / 180 * math.pi # [-180,180] -> [-pi, pi]
+    phi = ( 90 - lat[i] ) / 180 * math.pi # [+90,-90] -> [0, pi], north pole = 0, equator = 90, south pole = 180
+    sinphi = math.sin(phi)
+    
+    tx = math.cos(theta) * sinphi
+    ty = math.sin(theta) * sinphi
+    tz = math.cos(phi)
+    
+    x.append( tx )
+    y.append( ty )
+    z.append( tz )
+    #print('<{0}, {1}, {2}>\n'.format(tx, ty, tz))
+
+# 2. find the center in 3-space by <mean(x),mean(y),mean(z)>
+cx = sum(x) / n
+cy = sum(y) / n
+cz = sum(z) / n
+#print('Centered At <{0}, {1}, {2}>\n'.format(cx, cy, cz))
+
+# 3. project that point back onto the unit sphere in lng,lat
+r = math.sqrt(cx*cx + cy*cy + cz*cz)
+theta = math.atan2(cy, cx)
+phi = math.acos(cz / r)
+
+# curvilinear center
+clng = theta / math.pi * 180
+clat = 90 - ( phi / math.pi * 180 )
+print('Curvilinear Center is {0},{1}'.format(clng, clat))
 
 # calculate the angle & quadrant of each point in polar coordinates
 quad = []
 angle = []
-for i in range(len(lng)):
+for i in range(n):
     # relative to center
     alng = lng[i] - clng
     alat = lat[i] - clat
@@ -116,8 +157,7 @@ data = sorted(data, key = getKey)
 # remove interior points
 i = 1
 convex_runs = 0
-bailout = len(data)
-while (convex_runs < bailout):
+while (convex_runs < n):
     mod = len(data)
     
     curr = data[i]
