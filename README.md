@@ -3,13 +3,13 @@ GeoConvexHull
 
 ## The Convex Hull Problem
 
-Given $n$ points on a flat Euclidean plane, draw the smallest possible polygon containing all of these points. This is the classic [Convex Hull Problem](http://en.wikipedia.org/wiki/Convex_hull). An intuitive algorithm for solving this problem can be found in [Graham Scanning](http://en.wikipedia.org/wiki/Graham_scan).
+Given n points on a flat Euclidean plane, draw the smallest possible polygon containing all of these points. This is the classic [Convex Hull Problem](http://en.wikipedia.org/wiki/Convex_hull). An intuitive algorithm for solving this problem can be found in [Graham Scanning](http://en.wikipedia.org/wiki/Graham_scan).
 
 ## The Spherical Case
 
 There are several problems with extending this to the spherical case:  
 - All of the points must be in the same hemisphere for a definition of "polygon" to make sense. No problem, we can just require that of our input, run a test, and stop execution if this requirement is violated.  
-- The center of lng/lat points on a map is *not* mean(lng),mean(lat). A better definition of "center" is had by taking the average of every point's $(x,y,z)$ coordinates and projecting that point back to the surface.  
+- The center of lng/lat points on a map is *not* mean(lng),mean(lat). A better definition of "center" is had by taking the average of every point's (x,y,z) coordinates and projecting that point back to the surface.  
 - The angle of two points relative to a third is *not* atan(dlat/dlng).  
 - The cross product calculation of two vectors on the sphere's surface is different.  
 - Data has to be normalized when adding/subtracting near the poles and the international dateline.  
