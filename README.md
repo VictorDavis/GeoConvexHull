@@ -22,4 +22,4 @@ Every point on the surface of the Hemisphere (the input) lies on the same side o
 
 ## Usage
 
-*The only required file is the Python script*. When you run it, it will check for an input.txt. This is where you should put your lng,lat data formatted like the included input.txt. If it does not find it, it will choose 100 points at random to write to an input.txt for you. The script will create an output.kml, which you can open in Google Earth. The KML will contain one marker on every point in your input file and the resulting convex polygon surrounding them.
+*The only required files are the Python scripts*. GeoConvexHull.py depends on HemisphereTest.py. Run GeoConvexHull, it will check for an input.txt. This is where you should put your lng,lat data formatted like the included input.txt. If it does not find it, it will choose 100 points at random to write to an input.txt for you. The script will create an output.kml, which you can open in Google Earth. The KML will contain one marker on every point in your input file and the resulting convex polygon surrounding them.
