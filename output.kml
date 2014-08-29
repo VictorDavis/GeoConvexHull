@@ -1,5 +1,27 @@
 <kml>
+<Document>
+<Style id="ylwPlacemark">
+<IconStyle>
+<Icon>
+<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+</Icon>
+</IconStyle>
+</Style>
+<Style id="redPlacemark">
+<IconStyle>
+<Icon>
+<href>http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href>
+</Icon>
+</IconStyle>
+</Style>
+<Style id="ylwLine">
+<LineStyle>
+<color>ff00ffff</color>
+<width>3</width>
+</LineStyle>
+</Style>
 <Placemark>
+<styleUrl>#ylwPlacemark</styleUrl>
 <MultiGeometry>
 <Point><coordinates>-123.652078353,34.4631422394</coordinates></Point>
 <Point><coordinates>-112.901188304,27.9167652027</coordinates></Point>
@@ -101,7 +123,13 @@
 <Point><coordinates>-101.34841715,43.2203030915</coordinates></Point>
 <Point><coordinates>-79.9459902761,32.0947487733</coordinates></Point>
 <Point><coordinates>-96.4899452844,44.3662499843</coordinates></Point>
-<LinearRing>
+</MultiGeometry>
+</Placemark>
+<Placemark>
+<styleUrl>#ylwLine</styleUrl>
+<LineString>
+<tessellate>1</tessellate>
+<altitudeMode>clampToGround</altitudeMode>
 <coordinates>
 -67.408567877,43.0685431768
 -74.2373498763,49.0225865346
@@ -111,12 +139,13 @@
 -123.298862403,27.2608119635
 -122.410969355,25.1293344933
 -121.063240876,25.1173777056
+-105.757598619,25.3084850871
 -82.1702840671,25.3838618864
 -70.772446775,25.9975103658
 -66.5373330415,29.448750712
 -67.408567877,43.0685431768
 </coordinates>
-</LinearRing>
-</MultiGeometry>
+</LineString>
 </Placemark>
+</Document>
 </kml>

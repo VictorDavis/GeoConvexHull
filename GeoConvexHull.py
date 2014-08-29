@@ -4,10 +4,31 @@ import math
 import random
 import string
 import os
+import numpy as np
+import HemisphereTest as ht
 
 ## uses the Graham Scanning algorithm to find the convex hull of a list of points
 ## given by *rectangular* coordinates
 
+# convert point (x,y,z) to (lng,lat)
+def toLngLat(p):
+	r = np.linalg.norm(p)
+	theta = math.atan2(p[1], p[0]) # y / x
+	phi = math.acos(p[2] / r) # z / r
+	tlng = theta / math.pi * 180
+	tlat = 90 - ( phi / math.pi * 180 )
+	return [tlng, tlat]
+
+def toXYZ(lng, lat):
+	theta = lng / 180 * math.pi # [-180,180] -> [-pi, pi]
+	phi = ( 90 - lat ) / 180 * math.pi # [+90,-90] -> [0, pi], north pole = 0, equator = 90, south pole = 180
+	sinphi = math.sin(phi)  
+	tx = math.cos(theta) * sinphi
+	ty = math.sin(theta) * sinphi
+	tz = math.cos(phi)
+	return [tx, ty, tz]
+
+# input/output files
 fin = 'input.txt'
 fout = 'output.kml'
 
@@ -55,7 +76,14 @@ mykml = open(fout, 'w')
 
 # KML header
 mykml.write('<kml>\n')
+mykml.write('<Document>\n')
+mykml.write('<Style id="ylwPlacemark">\n<IconStyle>\n<Icon>\n<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>\n</Icon>\n</IconStyle>\n</Style>\n')
+mykml.write('<Style id="redPlacemark">\n<IconStyle>\n<Icon>\n<href>http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href>\n</Icon>\n</IconStyle>\n</Style>\n')
+mykml.write('<Style id="ylwLine">\n<LineStyle>\n<color>ff00ffff</color>\n<width>3</width>\n</LineStyle>\n</Style>\n')
+
+# KML input points yellow
 mykml.write('<Placemark>\n')
+mykml.write('<styleUrl>#ylwPlacemark</styleUrl>\n')
 mykml.write('<MultiGeometry>\n')
 
 # extract lng/lat into arrays
@@ -70,6 +98,10 @@ for line in f:
 	fmt = ["Point", "coordinates", coord[0], float(coord[1])]
 	msg = '<{0[0]}><{0[1]}>{0[2]},{0[3]}</{0[1]}></{0[0]}>\n'.format(fmt)
 	mykml.write(msg)
+	
+# KML end input points yellow
+mykml.write('</MultiGeometry>\n')
+mykml.write('</Placemark>\n')
     
 ## find the center of the data
 n = len(lng)
@@ -81,71 +113,106 @@ print('Cartesian Center is {0},{1}'.format(clng, clat))
 
 # correction for curvature of the earth
 # refer to http://mathworld.wolfram.com/SphericalCoordinates.html
-x = []
-y = []
-z = []
+pt = []
 
 # 1. convert each lng,lat point to <x,y,z> on the unit sphere
 for i in range(n):
-	theta = lng[i] / 180 * math.pi # [-180,180] -> [-pi, pi]
-	phi = ( 90 - lat[i] ) / 180 * math.pi # [+90,-90] -> [0, pi], north pole = 0, equator = 90, south pole = 180
-	sinphi = math.sin(phi)
-    
-	tx = math.cos(theta) * sinphi
-	ty = math.sin(theta) * sinphi
-	tz = math.cos(phi)
-    
-	x.append( tx )
-	y.append( ty )
-	z.append( tz )
-	#print('<{0}, {1}, {2}>\n'.format(tx, ty, tz))
+	txyz = toXYZ(lng[i], lat[i])
+	pt.append( np.array(txyz) )
+
+# 2. test that they are in the same hemisphere, if so,
+#    then find the pole of a viable hemisphere
+ht1 = ht.HemisphereTest(pt)
+print('Running same hemisphere test...')
+ok = ht1.getResult()
+if not ok:
+	print('...Input points do not lie in the same hemisphere. No convex hull possible.\n')
+	exit()
+	
+print('...Same hemisphere test passed.')
+pole = ht1.getCentralPole()
 
 # 2. find the center in 3-space by <mean(x),mean(y),mean(z)>
-cx = sum(x) / n
-cy = sum(y) / n
-cz = sum(z) / n
-#print('Centered At <{0}, {1}, {2}>\n'.format(cx, cy, cz))
+ctr = np.mean(pt, axis = 0)
+print('Centered At {0}'.format(ctr))
 
 # 3. project that point back onto the unit sphere in lng,lat
-r = math.sqrt(cx*cx + cy*cy + cz*cz)
-theta = math.atan2(cy, cx)
-phi = math.acos(cz / r)
 
 # curvilinear center
-clng = theta / math.pi * 180
-clat = 90 - ( phi / math.pi * 180 )
+ctrll = toLngLat(ctr)
+clng = ctrll[0]
+clat = ctrll[1]
 print('Curvilinear Center is {0},{1}'.format(clng, clat))
 
-# calculate the angle & quadrant of each point in polar coordinates
+# hemisphere center
+hemictr = toLngLat(pole)
+clng = hemictr[0]
+clat = hemictr[1]
+print('Hemispheric Center is {0},{1}'.format(clng, clat))
+
+# 4. project every starting point onto the plane defining the common hemisphere
+#    (test) x,y values should be in the unit circle, all z >= 0
+
+# the hemisphere's pole (the plane's normal) measures z
+zhat = pole
+
+# this is where the plane intersects the equator, let it be x
+r = np.linalg.norm(np.array([zhat[0], zhat[1]]))
+xhat = np.array([+zhat[1] / r, -zhat[0]/r, 0]) # where
+
+# y = z cross x
+yhat = np.cross(zhat, xhat)
+
+# the above gives mutually perpendicular axes for a coord system
+m = np.matrix([xhat, yhat, zhat]) # create coord system as row matrix
+m = m.getT() # transpose to get column matrix
+m = m.getI() # invert to get transformation matrix (invertible by constr)
+
+# expressing each point in the new coords is equiv to projecting them
+# onto the plane (as xy) and ignoring z
+proj = []
+for p in pt:
+	mp = np.matrix([p]).getT()
+	newp = (m * mp).getT() # |(x,y)| <= 1, z > 0
+	tproj = np.array([newp[0,0], newp[0,1]])
+	proj.append(tproj)
+	print(tproj)
+
+# 5. calculate the angle & quadrant of each projection in polar coordinates
+
+# center of the points (should be close to 0,0)
+cproj = np.mean(proj, axis = 0)
+print('Projections centered at {0}.'.format(cproj))
+
 quad = []
 angle = []
 for i in range(n):
 	# relative to center
-	alng = lng[i] - clng
-	alat = lat[i] - clat
+	dx = proj[i][0] - cproj[0]
+	dy = proj[i][1] - cproj[1]
     
-	# quadrant ( x = lng, y = lat )
-	if ((alng >= 0) & (alat >= 0)): q = 1
-	if ((alng <  0) & (alat >= 0)): q = 2
-	if ((alng <  0) & (alat <  0)): q = 3
-	if ((alng >= 0) & (alat <  0)): q = 4
-
-	quad.append(q)
+	## quadrant
+	#if ((dx >= 0) & (dy >= 0)): q = 1
+	#if ((dx <  0) & (dy >= 0)): q = 2
+	#if ((dx <  0) & (dy <  0)): q = 3
+	#if ((dx >= 0) & (dy <  0)): q = 4
+	#quad.append(q)
     
 	# angle from the center
-	th = math.atan(math.fabs(alat / alng)) # returns positive angle only
-	if ((q == 2) | (q == 4)):
-		th = math.pi / 2 - th # reverse direction for negative ranges
-
-	th = math.pi / 2 * (q - 1) + th
+	th = math.atan2(dy, dx)
 	angle.append(th)
     
 # put it all together in a data frame
-data = zip(lng, lat, quad, angle)
+# 0 = projected point
+# 1 = projected angle relative to projected center
+# 2 = original point in 3d
+# 3 = original longitude
+# 4 = original latitude
+data = zip(proj, angle, pt, lng, lat)
 
 # sort by 3rd column, angle [0-2pi)
 def getKey(item):
-	return item[3]
+	return item[1] # angle
 
 # sort data by quadrant, angle to sort counterclockwise
 data = sorted(data, key = getKey)
@@ -160,13 +227,11 @@ while (convex_runs < n):
 	forw = data[(i+1) % mod]
 	back = data[(i-1) % mod]
 
-	dxa = forw[0] - curr[0]
-	dya = forw[1] - curr[1]
-	dxb = curr[0] - back[0]
-	dyb = curr[1] - back[1]
+	a = forw[0] - curr[0] # a = next - this (projected)
+	b = curr[0] - back[0] # b = this - last (projected)
 
-	cross_product = dxa * dyb - dxb * dya
-	if (cross_product > 0):
+	cp = np.cross(a,b)
+	if (cp > 0):
 		data.pop(i)
 		convex_runs = 0
 	else:
@@ -175,22 +240,40 @@ while (convex_runs < n):
 	mod = len(data)
 	i = (i+1) % mod
 
-# KML polygon
-mykml.write('<LinearRing>\n')
+# KML polygon convex hull
+mykml.write('<Placemark>\n')
+mykml.write('<styleUrl>#ylwLine</styleUrl>\n')
+mykml.write('<LineString>\n')
+mykml.write('<tessellate>1</tessellate>\n')
+mykml.write('<altitudeMode>clampToGround</altitudeMode>\n')
 mykml.write('<coordinates>\n')
 for datum in data:
-	msg = '{0[0]},{0[1]}\n'.format(datum)
+	msg = '{0[3]},{0[4]}\n'.format(datum)
 	mykml.write(msg)
     
 # KML rewrite first entry so first = last will complete the loop
-msg = '{0[0]},{0[1]}\n'.format(data[0])
+msg = '{0[3]},{0[4]}\n'.format(data[0])
 mykml.write(msg)
 
 # KML footer
 mykml.write('</coordinates>\n')
-mykml.write('</LinearRing>\n')
-mykml.write('</MultiGeometry>\n')
+mykml.write('</LineString>\n')
 mykml.write('</Placemark>\n')
+
+## KML write hemispheric poles as red pins
+#mykml.write('<Placemark>\n')
+#mykml.write('<styleUrl>#redPlacemark</styleUrl>\n')
+#mykml.write('<MultiGeometry>\n')
+#poles = ht1.getPoles()
+#for p in poles:
+#	ll = toLngLat(p)
+#	fmt = ["Point", "coordinates", ll[0], float(ll[1])]
+#	msg = '<{0[0]}><{0[1]}>{0[2]},{0[3]}</{0[1]}></{0[0]}>\n'.format(fmt)
+#	mykml.write(msg)
+#mykml.write('</MultiGeometry>\n')
+#mykml.write('</Placemark>\n')
+
+mykml.write('</Document>\n')
 mykml.write('</kml>\n')
 
 # KML close

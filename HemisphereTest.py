@@ -7,8 +7,6 @@ class HemisphereTest:
 	def __init__(self, points):
 		self.points = points
 		self.test = False
-	def normalize(self, p):
-		return p / math.sqrt(np.dot(p,p))
 	# add pole to list if new
 	def addPole(self, pole):
 		new = True
@@ -26,7 +24,7 @@ class HemisphereTest:
 				if (i != j):
 					# for each pair of points, take the positive and negative normalized cross products
 					p = np.cross(self.points[i], self.points[j])
-					p = self.normalize(p)
+					p = p / np.linalg.norm(p)
 					ok1 = True
 					ok2 = True
 					for k in range(0, n):
@@ -52,8 +50,8 @@ class HemisphereTest:
 		return self.poles
 	def getCentralPole(self):
 		if (self.getResult()):
-			p = sum(self.poles) / len(self.poles)
-			p = self.normalize(p)
+			p = np.mean(self.poles, axis = 0)
+			p = p / np.linalg.norm(p)
 			return p
 		else:
 			return np.array([0,0,0])
