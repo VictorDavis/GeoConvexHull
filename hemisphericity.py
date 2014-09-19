@@ -55,39 +55,3 @@ class HemisphereTest:
 			return p
 		else:
 			return np.array([0,0,0])
-
-class HemisphereTestDemo:
-	def __init__(self):
-		self.demo()
-	def lnglat(self, lng, lat):
-		theta = lng / 180 * math.pi # [-180,180] -> [-pi, pi]
-		phi = ( 90 - lat ) / 180 * math.pi # [+90,-90] -> [0, pi], north pole = 0, equator = 90, south pole = 180
-		sinphi = math.sin(phi)
-		tx = math.cos(theta) * sinphi
-		ty = math.sin(theta) * sinphi
-		tz = math.cos(phi)
-		return np.array([tx, ty, tz])
-	def demo(self):
-		pt = []
-		
-		# three points equally spaced along the equator
-		pt.append( self.lnglat(0.0, 0.0) )
-		pt.append( self.lnglat(120.0, 0.0) )
-		pt.append( self.lnglat(-120.0, 0.0) )
-		
-		# iceland
-		pt.append( self.lnglat(-19.0, 64.0) )
-
-		# these four points ARE all in the northern hemisphere, centered at the north pole,
-		# despite their geometric center being slightly offset from the north pole
-		positiveTest = HemisphereTest(pt)
-		print(positiveTest.getResult())
-		print(positiveTest.getCentralPole())
-		
-		 # south pole
-		pt.append( self.lnglat(0.0, -90.0) )
-		
-		# add in the south pole, and you get a negative result
-		negativeTest = HemisphereTest(pt)
-		print(negativeTest.getResult())
-		print(negativeTest.getCentralPole())
